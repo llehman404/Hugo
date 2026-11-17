@@ -1,0 +1,27 @@
+{{- /* Partial pour afficher un élément de l'arbre de navigation */ -}}
+{{- $page := . -}}
+{{- $hasChildren := or (ne (len $page.Sections) 0) (ne (len $page.Pages) 0) -}}
+
+<li class="tree-item">
+  <a href="{{- $page.RelPermalink -}}" class="tree-link">
+    {{- $page.Title -}}
+    {{- if $hasChildren -}}
+      <span class="tree-toggle">+</span>
+    {{- end -}}
+  </a>
+  {{- if $hasChildren -}}
+    <ul class="tree-nav">
+      {{- /* Afficher les sous-sections */ -}}
+      {{- range $page.Sections.ByTitle -}}
+        {{- partial "tree_item.html" . -}}
+      {{- end -}}
+      {{- /* Afficher les pages directes (si pas de sous-sections) */ -}}
+      {{- $directPages := where $page.Pages "Section" "" -}}
+      {{- range $directPages.ByTitle -}}
+        <li class="tree-item">
+          <a href="{{- .RelPermalink -}}" class="tree-link">{{- .Title -}}</a>
+        </li>
+      {{- end -}}
+    </ul>
+  {{- end -}}
+</li>

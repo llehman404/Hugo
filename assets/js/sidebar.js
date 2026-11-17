@@ -1,5 +1,7 @@
 // ========== RECHERCHE GLOBALE ==========
 let searchIndex = null;
+
+// Configuration optimisée pour la recherche dans le contenu
 let fuseOptions = {
   isCaseSensitive: false,
   includeScore: true,
@@ -8,16 +10,17 @@ let fuseOptions = {
   findAllMatches: true,
   minMatchCharLength: 2,
   location: 0,
-  threshold: 0.4,
+  threshold: 0.2,  // Réduit de 0.4 à 0.2 pour plus de résultats
   distance: 100,
   useExtendedSearch: false,
-  ignoreLocation: false,
+  ignoreLocation: true,  // Ignore la position dans le texte
   ignoreFieldNorm: false,
   fieldNormWeight: 1,
+  // Donner plus de poids au contenu qu'au titre
   keys: [
-    { name: 'title', weight: 0.7 },
-    { name: 'content', weight: 0.3 },
-    { name: 'permalink', weight: 0.5 }
+    { name: 'title', weight: 0.4 },
+    { name: 'content', weight: 0.6 },  // Plus de poids au contenu
+    { name: 'permalink', weight: 0.3 }
   ]
 };
 
@@ -25,6 +28,11 @@ let fuseOptions = {
 function loadSearchIndex() {
   const baseUrl = document.querySelector('link[rel="canonical"]')?.href || '';
   const indexUrl = new URL('index.json', baseUrl).toString();
+  const loadingIndicator = document.querySelector('.search-loading');
+  
+  if (loadingIndicator) {
+    loadingIndicator.classList.add('show');
+  }
   
   fetch(indexUrl)
     .then(response => {
@@ -34,9 +42,15 @@ function loadSearchIndex() {
     .then(data => {
       searchIndex = new Fuse(data, fuseOptions);
       setupSearch();
+      if (loadingIndicator) {
+        loadingIndicator.classList.remove('show');
+      }
     })
     .catch(error => {
       console.error('Error loading search index:', error);
+      if (loadingIndicator) {
+        loadingIndicator.classList.remove('show');
+      }
     });
 }
 
@@ -44,6 +58,7 @@ function loadSearchIndex() {
 function setupSearch() {
   const searchInput = document.getElementById('global-search-input');
   const searchResults = document.getElementById('global-search-results');
+  const loadingIndicator = document.querySelector('.search-loading');
   
   if (!searchInput || !searchResults) return;
   
@@ -58,26 +73,56 @@ function setupSearch() {
       return;
     }
     
+    // Afficher l'indicateur de chargement
+    if (loadingIndicator) {
+      loadingIndicator.classList.add('show');
+    }
+    
     searchTimeout = setTimeout(() => {
-      if (!searchIndex) return;
+      if (!searchIndex) {
+        if (loadingIndicator) loadingIndicator.classList.remove('show');
+        return;
+      }
       
-      const results = searchIndex.search(query).slice(0, 10);
+      // Recherche avec Fuse.js
+      const results = searchIndex.search(query);
       
-      if (results.length > 0) {
+      // Limiter à 15 résultats
+      const limitedResults = results.slice(0, 15);
+      
+      if (limitedResults.length > 0) {
         searchResults.innerHTML = '';
-        results.forEach(result => {
+        limitedResults.forEach(result => {
           const item = document.createElement('div');
           item.className = 'search-result-item';
-          item.innerHTML = `<a href="${result.item.permalink}">${highlightText(result.item.title, query)}</a>`;
+          
+          // Surligner le texte trouvé
+          const title = highlightText(result.item.title, query);
+          const contentPreview = getContentPreview(result.item.content, query, 100);
+          
+          item.innerHTML = `
+            <a href="${result.item.permalink}">
+              <div class="search-result-title">${title}</div>
+              ${contentPreview ? `<div class="search-result-snippet">${contentPreview}</div>` : ''}
+            </a>
+          `;
+          
           item.onclick = () => {
             searchResults.classList.remove('show');
             searchInput.value = '';
+            if (loadingIndicator) loadingIndicator.classList.remove('show');
           };
+          
           searchResults.appendChild(item);
         });
         searchResults.classList.add('show');
       } else {
-        searchResults.classList.remove('show');
+        searchResults.innerHTML = '<div class="search-result-item no-results">Aucun résultat trouvé</div>';
+        searchResults.classList.add('show');
+      }
+      
+      if (loadingIndicator) {
+        loadingIndicator.classList.remove('show');
       }
     }, 150);
   });
@@ -94,14 +139,46 @@ function setupSearch() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (searchResults) searchResults.classList.remove('show');
+      if (searchInput) searchInput.value = '';
     }
   });
 }
 
+// Extraire un extrait du contenu avec le terme de recherche
+function getContentPreview(content, query, maxLength) {
+  // Trouver la position de la première occurrence
+  const contentLower = content.toLowerCase();
+  const queryLower = query.toLowerCase();
+  const pos = contentLower.indexOf(queryLower);
+  
+  if (pos === -1) return '';
+  
+  // Extraire un texte autour de la position
+  const start = Math.max(0, pos - 20);
+  const end = Math.min(content.length, pos + maxLength);
+  let preview = content.substring(start, end);
+  
+  // Si on a coupé au début, ajouter ...
+  if (start > 0) {
+    preview = '...' + preview;
+  }
+  
+  // Surligner le query dans le preview
+  preview = highlightText(preview, query);
+  
+  return preview;
+}
+
 // Surligner le texte trouvé dans les résultats
 function highlightText(text, query) {
-  const regex = new RegExp(`(${query})`, 'gi');
+  if (!query) return text;
+  const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
   return text.replace(regex, '<mark>$1</mark>');
+}
+
+// Échapper les caractères spéciaux pour Regex
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // ========== ARBRE DE NAVIGATION ==========

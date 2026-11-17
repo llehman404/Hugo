@@ -14,12 +14,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Vérifier si on est sur la page d'accueil
     isHomePage = window.location.pathname === '/' || window.location.pathname === '/index.html';
     
-    // Charger l'index de recherche
-    loadSearchIndex();
-    
-    // Initialiser la recherche
-    initSearch();
-    
     // Initialiser la navigation par arbre
     initTreeNavigation();
     
@@ -31,78 +25,89 @@ document.addEventListener('DOMContentLoaded', function() {
             expandCurrentPagePath();
         }
     }, 100);
+    
+    // Charger la recherche après que tout soit prêt
+    setTimeout(() => {
+        loadSearch();
+    }, 200);
 });
-
-// ==========================================
-// CHARGEMENT DE L'INDEX DE RECHERCHE
-// ==========================================
-function loadSearchIndex() {
-    const indexPath = '/index.json';
-    
-    fetch(indexPath)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            searchIndex = data;
-            // Fuse.js est déjà chargé via la balise <script> dans le HTML
-            initFuseWithRetry(data);
-        })
-        .catch(error => {
-            console.error('Erreur chargement index:', error);
-        });
-}
-
-function initFuseWithRetry(data, attempt = 1) {
-    if (typeof Fuse === 'undefined') {
-        if (attempt < 10) {
-            setTimeout(() => initFuseWithRetry(data, attempt + 1), 200);
-        }
-        return;
-    }
-    
-    fuse = new Fuse(data, {
-        keys: [
-            { name: 'title', weight: 0.4 },
-            { name: 'content', weight: 0.6 },
-            { name: 'summary', weight: 0.3 }
-        ],
-        threshold: 0.3,
-        ignoreLocation: true,
-        minMatchCharLength: 2,
-        useExtendedSearch: true,
-        findAllMatches: true,
-        isCaseSensitive: false,
-        shouldSort: true
-    });
-}
 
 // ==========================================
 // RECHERCHE
 // ==========================================
-function initSearch() {
+function loadSearch() {
     const searchInput = document.getElementById('global-search-input');
     const searchResults = document.getElementById('global-search-results');
-    const loadingIndicator = document.querySelector('.search-loading');
     
-    if (!searchInput || !searchResults) return;
+    if (!searchInput || !searchResults) {
+        console.warn('Search elements not found');
+        return;
+    }
+    
+    // Charger l'index
+    fetch('/index.json')
+        .then(response => {
+            if (!response.ok) throw new Error('Index not found');
+            return response.json();
+        })
+        .then(data => {
+            searchIndex = data;
+            console.log('Index loaded:', data.length, 'pages');
+            
+            // Initialiser la recherche
+            initSearchUI(searchInput, searchResults);
+            
+            // Initialiser Fuse.js si disponible
+            initFuse(data);
+        })
+        .catch(error => {
+            console.error('Error loading index:', error);
+        });
+}
 
+function initFuse(data) {
+    // Vérifier si Fuse est disponible
+    const fuseCheck = setInterval(() => {
+        if (typeof Fuse !== 'undefined') {
+            clearInterval(fuseCheck);
+            fuse = new Fuse(data, {
+                keys: [
+                    { name: 'title', weight: 0.4 },
+                    { name: 'content', weight: 0.6 },
+                    { name: 'summary', weight: 0.3 }
+                ],
+                threshold: 0.3,
+                ignoreLocation: true,
+                minMatchCharLength: 2,
+                useExtendedSearch: true,
+                findAllMatches: true,
+                isCaseSensitive: false,
+                shouldSort: true
+            });
+            console.log('Fuse.js initialized');
+        }
+    }, 100);
+    
+    // Timeout après 3 secondes
+    setTimeout(() => {
+        clearInterval(fuseCheck);
+        console.warn('Fuse.js not loaded, using fallback search');
+    }, 3000);
+}
+
+function initSearchUI(searchInput, searchResults) {
+    const loadingIndicator = document.querySelector('.search-loading');
     let searchTimeout;
 
     searchInput.addEventListener('input', function(e) {
         const query = e.target.value.trim();
         
-        // Fermer si vide
         if (query.length === 0) {
             searchResults.classList.remove('show');
             if (loadingIndicator) loadingIndicator.classList.remove('show');
             return;
         }
 
-        // Minimum 2 caractères
         if (query.length < 2) {
             searchResults.innerHTML = '<div class="no-results">Tapez au moins 2 caractères</div>';
             searchResults.classList.add('show');
@@ -165,13 +170,27 @@ function initSearch() {
 }
 
 function performSearch(query, resultsContainer, loadingIndicator) {
-    if (!fuse) {
-        resultsContainer.innerHTML = '<div class="no-results">Recherche en cours...</div>';
+    if (!searchIndex) {
+        resultsContainer.innerHTML = '<div class="no-results">Index en cours de chargement...</div>';
         if (loadingIndicator) loadingIndicator.classList.remove('show');
         return;
     }
 
-    const results = fuse.search(query);
+    let results = [];
+    const queryLower = query.toLowerCase();
+    
+    if (fuse) {
+        // Utiliser Fuse.js
+        results = fuse.search(query);
+    } else {
+        // Fallback : recherche simple
+        results = searchIndex.filter(item => {
+            const title = (item.title || '').toLowerCase();
+            const content = (item.content || '').toLowerCase();
+            const summary = (item.summary || '').toLowerCase();
+            return title.includes(queryLower) || content.includes(queryLower) || summary.includes(queryLower);
+        }).map(item => ({ item, score: 0 }));
+    }
     
     if (results.length === 0) {
         resultsContainer.innerHTML = '<div class="no-results">Aucun résultat trouvé</div>';
@@ -209,7 +228,7 @@ function performSearch(query, resultsContainer, loadingIndicator) {
 }
 
 function highlightText(text, query) {
-    if (!query) return text;
+    if (!query || !text) return text || '';
     try {
         const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
         return text.replace(regex, '<mark>$1</mark>');
@@ -238,11 +257,9 @@ function initTreeNavigation() {
                 const isExpanded = childList.classList.contains('show');
                 
                 if (isExpanded) {
-                    // Fermer ce niveau
                     childList.classList.remove('show');
                     this.textContent = '+ ';
                 } else {
-                    // Ouvrir ce niveau
                     childList.classList.add('show');
                     this.textContent = '- ';
                 }
@@ -265,10 +282,8 @@ function collapseAllTreeItems() {
 }
 
 function expandCurrentPagePath() {
-    const currentPath = window.location.pathname;
     const currentUrl = window.location.href;
     
-    // Trouver le lien correspondant
     let bestMatch = null;
     let bestScore = -1;
     

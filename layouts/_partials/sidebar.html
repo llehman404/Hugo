@@ -1,7 +1,19 @@
 {{- /* Sidebar gauche personnalisée avec recherche et arbre de navigation */ -}}
 
+{{- /* Charger Fuse.js depuis PaperMod */ -}}
+{{- $fuseJS := resources.Get "js/fuse.basic.min.js" -}}
+
 {{- /* Charger le CSS de la sidebar */ -}}
 {{- $sidebarCSS := resources.Get "css/sidebar.css" -}}
+
+{{- /* Charger Fuse.js */ -}}
+{{- if $fuseJS -}}
+  <script src="{{- $fuseJS.RelPermalink -}}"></script>
+{{- else -}}
+  <script src="{{- "js/fuse.basic.min.js" | relURL -}}"></script>
+{{- end -}}
+
+{{- /* Charger le CSS */ -}}
 {{- if $sidebarCSS -}}
   <link rel="stylesheet" href="{{- $sidebarCSS.RelPermalink -}}">
 {{- else -}}
@@ -20,7 +32,12 @@
       Recherche
     </h3>
     <div class="search-box">
-      <input id="global-search-input" type="text" placeholder="Rechercher..." autocomplete="off">
+      <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input id="global-search-input" type="text" placeholder="Tapez pour rechercher..." autocomplete="off">
+      <div class="search-loading"></div>
       <div id="global-search-results" class="search-results-dropdown"></div>
     </div>
   </div>
@@ -37,19 +54,17 @@
       Navigation
     </h3>
     <nav class="tree-nav-container">
-      <ul class="tree-nav root-level">
-        {{- /* Conserverie */ -}}
-        {{- $conserverie := site.GetPage "section" "conserverie" -}}
-        {{- if $conserverie -}}
-          {{- partial "tree_item.html" $conserverie -}}
-        {{- end -}}
-        
-        {{- /* Informatique */ -}}
-        {{- $informatique := site.GetPage "section" "informatique" -}}
-        {{- if $informatique -}}
-          {{- partial "tree_item.html" $informatique -}}
-        {{- end -}}
-      </ul>
+      {{- /* Conserverie */ -}}
+      {{- $conserverie := site.GetPage "section" "conserverie" -}}
+      {{- if $conserverie -}}
+        {{- partial "tree_item.html" $conserverie -}}
+      {{- end -}}
+      
+      {{- /* Informatique */ -}}
+      {{- $informatique := site.GetPage "section" "informatique" -}}
+      {{- if $informatique -}}
+        {{- partial "tree_item.html" $informatique -}}
+      {{- end -}}
     </nav>
   </div>
 

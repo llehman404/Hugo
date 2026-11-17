@@ -1,252 +1,332 @@
-// ========== RECHERCHE GLOBALE ==========
-let searchIndex = null;
+// ==========================================
+// SIDEBAR - Recherche et Navigation par Arbre
+// ==========================================
 
-// Configuration optimisée pour la recherche dans le contenu
-let fuseOptions = {
-  isCaseSensitive: false,
-  includeScore: true,
-  shouldSort: true,
-  includeMatches: true,
-  findAllMatches: true,
-  minMatchCharLength: 2,
-  location: 0,
-  threshold: 0.2,
-  distance: 100,
-  useExtendedSearch: false,
-  ignoreLocation: true,
-  ignoreFieldNorm: false,
-  fieldNormWeight: 1,
-  keys: [
-    { name: 'title', weight: 0.4 },
-    { name: 'content', weight: 0.6 },
-    { name: 'permalink', weight: 0.3 }
-  ]
-};
+// Fuse.js pour la recherche (chargé depuis PaperMod)
+let searchIndex = null;
+let fuse = null;
 
 // Charger l'index de recherche
+document.addEventListener('DOMContentLoaded', function() {
+    loadSearchIndex();
+    initTreeNavigation();
+    initSearch();
+    fixInitialTreeState();
+});
+
+// ==========================================
+// CHARGEMENT DE L'INDEX DE RECHERCHE
+// ==========================================
 function loadSearchIndex() {
-  // Utiliser une URL absolue vers index.json à la racine
-  const indexUrl = new URL('/index.json', window.location.origin).toString();
-  const loadingIndicator = document.querySelector('.search-loading');
-  
-  if (loadingIndicator) {
-    loadingIndicator.classList.add('show');
-  }
-  
-  fetch(indexUrl)
-    .then(response => {
-      if (!response.ok) throw new Error(`Failed to load search index: ${response.status}`);
-      return response.json();
-    })
-    .then(data => {
-      searchIndex = new Fuse(data, fuseOptions);
-      setupSearch();
-      if (loadingIndicator) {
-        loadingIndicator.classList.remove('show');
-      }
-    })
-    .catch(error => {
-      console.error('Error loading search index:', error);
-      if (loadingIndicator) {
-        loadingIndicator.classList.remove('show');
-      }
+    const indexPath = typeof __SEARCH_INDEX__ !== 'undefined' ? __SEARCH_INDEX__ : '/index.json';
+    
+    fetch(indexPath)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            searchIndex = data;
+            
+            // Configuration Fuse.js
+            const options = {
+                keys: [
+                    { name: 'title', weight: 0.4 },
+                    { name: 'content', weight: 0.6 }
+                ],
+                threshold: 0.2,
+                ignoreLocation: true,
+                minMatchCharLength: 2,
+                useExtendedSearch: true,
+                findAllMatches: true,
+                isCaseSensitive: false,
+                shouldSort: true
+            };
+            
+            fuse = new Fuse(data, options);
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement de l\'index de recherche:', error);
+        });
+}
+
+// ==========================================
+// INITIALISATION DE LA RECHERCHE
+// ==========================================
+function initSearch() {
+    const searchInput = document.getElementById('global-search-input');
+    const searchResults = document.getElementById('global-search-results');
+    const loadingIndicator = document.querySelector('.search-loading');
+    
+    if (!searchInput || !searchResults) return;
+
+    searchInput.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        if (query.length === 0) {
+            searchResults.classList.remove('show');
+            if (loadingIndicator) loadingIndicator.classList.remove('show');
+            return;
+        }
+
+        if (loadingIndicator) loadingIndicator.classList.add('show');
+        searchResults.classList.add('show');
+        
+        // Utiliser un délai pour éviter les requêtes trop fréquentes
+        clearTimeout(window.searchTimeout);
+        window.searchTimeout = setTimeout(() => {
+            performSearch(query, searchResults, loadingIndicator);
+        }, 200);
+    });
+
+    // Fermer les résultats quand on clique ailleurs
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.classList.remove('show');
+        }
+    });
+
+    // Navigation avec les flèches
+    searchInput.addEventListener('keydown', function(e) {
+        const results = searchResults.querySelectorAll('.search-result-item');
+        let currentIndex = -1;
+        
+        results.forEach((item, index) => {
+            if (item.classList.contains('focused')) {
+                currentIndex = index;
+            }
+        });
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (currentIndex < results.length - 1) {
+                results[currentIndex]?.classList.remove('focused');
+                results[currentIndex + 1].classList.add('focused');
+                results[currentIndex + 1].scrollIntoView({ block: 'nearest' });
+            } else if (results.length > 0) {
+                results[currentIndex]?.classList.remove('focused');
+                results[0].classList.add('focused');
+                results[0].scrollIntoView({ block: 'nearest' });
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (currentIndex > 0) {
+                results[currentIndex].classList.remove('focused');
+                results[currentIndex - 1].classList.add('focused');
+                results[currentIndex - 1].scrollIntoView({ block: 'nearest' });
+            } else if (results.length > 0) {
+                results[currentIndex]?.classList.remove('focused');
+                results[results.length - 1].classList.add('focused');
+                results[results.length - 1].scrollIntoView({ block: 'nearest' });
+            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const focused = searchResults.querySelector('.search-result-item.focused');
+            if (focused) {
+                focused.click();
+            } else if (results.length > 0) {
+                results[0].click();
+            }
+        } else if (e.key === 'Escape') {
+            searchResults.classList.remove('show');
+        }
     });
 }
 
-// Configurer la barre de recherche
-function setupSearch() {
-  const searchInput = document.getElementById('global-search-input');
-  const searchResults = document.getElementById('global-search-results');
-  const loadingIndicator = document.querySelector('.search-loading');
-  
-  if (!searchInput || !searchResults) return;
-  
-  let searchTimeout;
-  
-  searchInput.addEventListener('input', (e) => {
-    clearTimeout(searchTimeout);
-    const query = e.target.value.trim();
-    
-    if (query.length < 2) {
-      searchResults.classList.remove('show');
-      return;
-    }
-    
-    // Afficher l'indicateur de chargement
-    if (loadingIndicator) {
-      loadingIndicator.classList.add('show');
-    }
-    
-    searchTimeout = setTimeout(() => {
-      if (!searchIndex) {
+function performSearch(query, resultsContainer, loadingIndicator) {
+    if (!fuse || query.length < 2) {
+        resultsContainer.innerHTML = '<div class="no-results">Aucun résultat trouvé</div>';
         if (loadingIndicator) loadingIndicator.classList.remove('show');
         return;
-      }
-      
-      // Recherche avec Fuse.js
-      const results = searchIndex.search(query);
-      
-      // Limiter à 15 résultats
-      const limitedResults = results.slice(0, 15);
-      
-      if (limitedResults.length > 0) {
-        searchResults.innerHTML = '';
-        limitedResults.forEach(result => {
-          const item = document.createElement('div');
-          item.className = 'search-result-item';
-          
-          // Surligner le texte trouvé
-          const title = highlightText(result.item.title, query);
-          const contentPreview = getContentPreview(result.item.content, query, 100);
-          
-          item.innerHTML = `
-            <a href="${result.item.permalink}">
-              <div class="search-result-title">${title}</div>
-              ${contentPreview ? `<div class="search-result-snippet">${contentPreview}</div>` : ''}
-            </a>
-          `;
-          
-          item.onclick = () => {
-            searchResults.classList.remove('show');
-            searchInput.value = '';
-            if (loadingIndicator) loadingIndicator.classList.remove('show');
-          };
-          
-          searchResults.appendChild(item);
-        });
-        searchResults.classList.add('show');
-      } else {
-        searchResults.innerHTML = '<div class="search-result-item no-results">Aucun résultat trouvé</div>';
-        searchResults.classList.add('show');
-      }
-      
-      if (loadingIndicator) {
-        loadingIndicator.classList.remove('show');
-      }
-    }, 150);
-  });
-  
-  // Fermer les résultats quand on clique à l'extérieur
-  document.addEventListener('click', (e) => {
-    if (searchInput && searchResults && 
-        !searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-      searchResults.classList.remove('show');
     }
-  });
-  
-  // Fermer avec la touche Escape
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (searchResults) searchResults.classList.remove('show');
-      if (searchInput) searchInput.value = '';
-    }
-  });
-}
 
-// Extraire un extrait du contenu avec le terme de recherche
-function getContentPreview(content, query, maxLength) {
-  const contentLower = content.toLowerCase();
-  const queryLower = query.toLowerCase();
-  const pos = contentLower.indexOf(queryLower);
-  
-  if (pos === -1) return '';
-  
-  const start = Math.max(0, pos - 20);
-  const end = Math.min(content.length, pos + maxLength);
-  let preview = content.substring(start, end);
-  
-  if (start > 0) {
-    preview = '...' + preview;
-  }
-  
-  preview = highlightText(preview, query);
-  
-  return preview;
-}
-
-// Surligner le texte trouvé dans les résultats
-function highlightText(text, query) {
-  if (!query) return text;
-  const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
-  return text.replace(regex, '<mark>$1</mark>');
-}
-
-// Échapper les caractères spéciaux pour Regex
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// ========== ARBRE DE NAVIGATION ==========
-
-// Initialiser l'arbre
-function initTree() {
-  const treeContainers = document.querySelectorAll('.tree-nav-container');
-  
-  // TOUT fermer par défaut (personne ne veut voir tout déployé)
-  closeAllTreeItems();
-  
-  // Ajouter les handlers pour le toggle
-  treeContainers.forEach(container => {
-    container.addEventListener('click', toggleTree);
-  });
-}
-
-// Fermer tous les items de l'arbre
-function closeAllTreeItems() {
-  const allTreeNavs = document.querySelectorAll('.tree-nav:not(.root-level)');
-  allTreeNavs.forEach(nav => {
-    nav.classList.remove('show');
-  });
-  
-  const allToggles = document.querySelectorAll('.tree-toggle');
-  allToggles.forEach(toggle => {
-    toggle.textContent = '+';
-  });
-  
-  const allItems = document.querySelectorAll('.tree-item');
-  allItems.forEach(item => {
-    item.classList.remove('active');
-  });
-}
-
-// Toggle pour les sous-sections
-function toggleTree(event) {
-  if (event.target.classList.contains('tree-toggle')) {
-    event.preventDefault();
-    event.stopPropagation();
-    const parent = event.target.closest('.tree-item');
-    const childNav = parent.querySelector('.tree-nav');
-    const toggle = parent.querySelector('.tree-toggle');
+    const results = fuse.search(query);
     
-    if (childNav) {
-      childNav.classList.toggle('show');
-      if (toggle) {
-        toggle.textContent = childNav.classList.contains('show') ? '−' : '+';
-      }
+    if (results.length === 0) {
+        resultsContainer.innerHTML = '<div class="no-results">Aucun résultat trouvé</div>';
+    } else {
+        const maxResults = Math.min(results.length, 10);
+        let html = '';
+        
+        for (let i = 0; i < maxResults; i++) {
+            const item = results[i].item;
+            const highlightedTitle = highlightText(item.title, query);
+            const highlightedSnippet = item.content ? highlightText(item.content.substring(0, 150) + '...', query) : '';
+            
+            html += `
+                <div class="search-result-item" data-url="${item.url}">
+                    <a href="${item.url}">
+                        <div class="search-result-title">${highlightedTitle}</div>
+                        <div class="search-result-snippet">${highlightedSnippet || item.description || ''}</div>
+                    </a>
+                </div>
+            `;
+        }
+        
+        resultsContainer.innerHTML = html;
+        
+        // Ajouter les gestionnaires de clic
+        resultsContainer.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = this.getAttribute('data-url');
+                window.location.href = url;
+                resultsContainer.classList.remove('show');
+            });
+            
+            item.addEventListener('mouseenter', function() {
+                this.classList.add('focused');
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                this.classList.remove('focused');
+            });
+        });
     }
-  }
+    
+    if (loadingIndicator) loadingIndicator.classList.remove('show');
 }
 
-// ========== INITIALISATION ==========
+function highlightText(text, query) {
+    if (!query) return text;
+    
+    const regex = new RegExp(`(${query})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  loadSearchIndex();
-  initTree();
+// ==========================================
+// NAVIGATION PAR ARBRE
+// ==========================================
+function initTreeNavigation() {
+    // Gestion des toggles
+    document.querySelectorAll('.tree-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const parentItem = this.closest('.tree-item');
+            const childList = parentItem.querySelector('.tree-nav');
+            const icon = this;
+            
+            if (childList) {
+                const isExpanded = childList.classList.contains('show');
+                
+                if (isExpanded) {
+                    childList.classList.remove('show');
+                    icon.textContent = '+ ';
+                } else {
+                    childList.classList.add('show');
+                    icon.textContent = '- ';
+                }
+            }
+        });
+    });
+    
+    // Gestion des clics sur les liens (pour activer la classe active)
+    document.querySelectorAll('.tree-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Ne pas empêcher la navigation
+            // Mais marquer l'item comme actif
+            const parentItem = this.closest('.tree-item');
+            
+            // Supprimer l Active de tous
+            document.querySelectorAll('.tree-item.active').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Marquer les parents comme actifs
+            let current = parentItem;
+            while (current && current.classList) {
+                if (current.classList.contains('tree-item')) {
+                    current.classList.add('active');
+                    // Déplier les enfants
+                    const childList = current.querySelector('.tree-nav');
+                    if (childList) {
+                        childList.classList.add('show');
+                        const toggle = current.querySelector('.tree-toggle');
+                        if (toggle) toggle.textContent = '- ';
+                    }
+                }
+                current = current.parentElement?.closest('.tree-item');
+            }
+        });
+    });
+}
+
+// ==========================================
+// CORRECTION DE L'ÉTAT INITIAL DE L'ARBRE
+// ==========================================
+function fixInitialTreeState() {
+    // TOUT doit être plié par défaut
+    // Le CSS s'en charge, mais on peut vérifier au cas où
+    document.querySelectorAll('.tree-nav:not(.root-level)').forEach(list => {
+        list.classList.remove('show');
+    });
+    
+    document.querySelectorAll('.tree-toggle').forEach(toggle => {
+        toggle.textContent = '+ ';
+    });
+    
+    // Marquer l'item correspondant à la page actuelle
+    markCurrentPageActive();
+}
+
+function markCurrentPageActive() {
+    const currentPath = window.location.pathname;
+    const currentUrl = window.location.href;
+    
+    // Trouver le lien correspondant
+    let activeLink = null;
+    document.querySelectorAll('.tree-link').forEach(link => {
+        const href = link.getAttribute('href');
+        
+        // Normaliser les URLs pour comparaison
+        const normalizedHref = normalizeUrl(href);
+        const normalizedCurrent = normalizeUrl(currentUrl);
+        
+        if (normalizedCurrent.endsWith(normalizedHref) || 
+            normalizedHref.endsWith(normalizedCurrent.split('/').pop())) {
+            activeLink = link;
+        }
+    });
+    
+    if (activeLink) {
+        const parentItem = activeLink.closest('.tree-item');
+        
+        // Marquer les parents comme actifs et les déplier
+        let current = parentItem;
+        while (current && current.classList) {
+            if (current.classList.contains('tree-item')) {
+                current.classList.add('active');
+                // Déplier
+                const childList = current.querySelector('.tree-nav');
+                if (childList) {
+                    childList.classList.add('show');
+                    const toggle = current.querySelector('.tree-toggle');
+                    if (toggle) toggle.textContent = '- ';
+                }
+            }
+            current = current.parentElement?.closest('.tree-item');
+        }
+    }
+}
+
+function normalizeUrl(url) {
+    // Supprimer les query strings et les hashs
+    return url.split('?')[0].split('#')[0].replace(/\/+$/, '');
+}
+
+
+// ==========================================
+// UTILITAIRES
+// ==========================================
+
+// Vérifier si on est sur une page avec sidebar
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.querySelector('.sidebar.left-sidebar');
+    if (sidebar) {
+        document.body.classList.add('has-sidebar');
+    }
 });
-
-// Re-initialiser quand on navigue
-if (window.history.pushState) {
-  const originalPushState = window.history.pushState;
-  window.history.pushState = function() {
-    originalPushState.apply(this, arguments);
-    setTimeout(() => {
-      initTree();
-    }, 50);
-  };
-  
-  window.addEventListener('popstate', () => {
-    setTimeout(() => {
-      initTree();
-    }, 50);
-  });
-}

@@ -45,10 +45,16 @@ body.has-sidebar .main {
     letter-spacing: 0.05em;
 }
 
+/* Masquer le titre "Recherche" pour éviter la redondance */
+.search-title {
+    display: none;
+}
+
 /* ===== RECHERCHE ===== */
 .search-box {
     position: relative;
     margin-bottom: 1rem;
+    margin-top: 0.5rem;
 }
 
 .search-icon {
@@ -206,13 +212,17 @@ body.has-sidebar .main {
     padding-left: 0;
 }
 
+/* FORCER tout à être plié par défaut (CSS) */
+.tree-nav:not(.root-level) {
+    display: none !important;
+}
+
 .tree-nav .tree-nav {
     padding-left: 1.25rem;
-    display: none;
 }
 
 .tree-nav .tree-nav.show {
-    display: block;
+    display: block !important;
     animation: fadeIn 0.2s ease;
 }
 

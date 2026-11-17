@@ -182,24 +182,8 @@ function escapeRegExp(string) {
 function initTree() {
   const treeContainers = document.querySelectorAll('.tree-nav-container');
   
-  // D'abord, tout fermer (par défaut tout est plié)
+  // TOUT fermer par défaut (personne ne veut voir tout déployé)
   closeAllTreeItems();
-  
-  // Puis ouvrir seulement le chemin vers la page courante
-  const currentPath = window.location.pathname;
-  const treeLinks = document.querySelectorAll('.tree-link');
-  
-  treeLinks.forEach(link => {
-    const linkHref = link.getAttribute('href');
-    if (currentPath === linkHref || currentPath.startsWith(linkHref + '/')) {
-      const parentItem = link.closest('.tree-item');
-      if (parentItem) {
-        parentItem.classList.add('active');
-        // Ouvrir tous les parents
-        openParentTreeItems(parentItem);
-      }
-    }
-  });
   
   // Ajouter les handlers pour le toggle
   treeContainers.forEach(container => {
@@ -223,21 +207,6 @@ function closeAllTreeItems() {
   allItems.forEach(item => {
     item.classList.remove('active');
   });
-}
-
-// Ouvrir les items parents
-function openParentTreeItems(item) {
-  let ancestor = item.parentElement?.closest('.tree-item');
-  while (ancestor) {
-    ancestor.classList.add('active');
-    const childNav = ancestor.querySelector('.tree-nav');
-    if (childNav) {
-      childNav.classList.add('show');
-      const toggle = ancestor.querySelector('.tree-toggle');
-      if (toggle) toggle.textContent = '−';
-    }
-    ancestor = ancestor.parentElement?.closest('.tree-item');
-  }
 }
 
 // Toggle pour les sous-sections

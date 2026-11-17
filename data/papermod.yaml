@@ -1,0 +1,51 @@
+# Configuration spécifique pour PaperMod
+# Couleurs Tokyo Violet
+color:
+  scheme: "PaperMod"
+  primary: "#bb9af7"
+  secondary: "#9d7cd8"
+  tertiary: "#7aa2f7"
+  background: "#1a1b26"
+  backgroundSecondary: "#16161e"
+  text: "#c0caf5"
+  textSecondary: "#a9b1d6"
+  border: "#3b4261"
+  
+# Recherche
+search:
+  enable: true
+  type: "fuse"
+  fuseConfig:
+    threshold: 0.2
+    minMatchCharLength: 2
+    keys:
+      - title
+      - content
+      - tags
+      - categories
+
+# Navigation
+nav:
+  showCategories: true
+  showTags: true
+  showSeries: false
+
+# En-tête
+header:
+  title: "Wiki Personnel"
+  subtitle: "Notes, tutoriels et documentation"
+  
+# Pied de page
+footer:
+  showPoweredBy: true
+  showHugo: true
+  showTheme: true
+
+# Homepage
+homeInfoParams:
+  Title: "Bienvenue sur mon Wiki"
+  Content: "Explorez mes notes organisées par thèmes"
+
+# Social (optionnel)
+social:
+  enabled: false

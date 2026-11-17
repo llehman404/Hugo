@@ -1,0 +1,50 @@
+{{- /* Liste déroulante pour les tags */ -}}
+{{- $tags := .Site.Taxonomies.tags -}}
+{{- if gt (len $tags) 0 -}}
+<div class="tag-dropdown-container">
+  <select id="tag-select" class="tag-dropdown" aria-label="Filtrer par tag">
+    <option value="">Tous les tags</option>
+    {{- range $tags.Alphabetical -}}
+    <option value="{{ .Page.Permalink }}">{{ .Page.Title }} ({{ .Count }})</option>
+    {{- end -}}
+  </select>
+</div>
+
+<style>
+  .tag-dropdown-container {
+    margin-left: 1rem;
+    display: inline-block;
+  }
+  
+  .tag-dropdown {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background-color: var(--entry);
+    color: var(--text);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .tag-dropdown:hover,
+  .tag-dropdown:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(187, 154, 247, 0.3);
+  }
+  
+  .tag-dropdown option {
+    background-color: var(--entry);
+    color: var(--text);
+  }
+</style>
+
+<script>
+  document.getElementById('tag-select').addEventListener('change', function() {
+    if (this.value) {
+      window.location.href = this.value;
+    }
+  });
+</script>
+{{- end -}}

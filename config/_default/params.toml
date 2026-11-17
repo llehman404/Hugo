@@ -1,0 +1,65 @@
+# PaperMod Configuration - Tokyo Violet Edition
+
+# Theme settings
+[color]
+  scheme = "PaperMod"
+  primary = "#bb9af7"
+  secondary = "#9d7cd8"
+  tertiary = "#7aa2f7"
+  
+[header]
+  title = "Wiki Personnel"
+  subtitle = "Notes, tutoriels et documentation"
+  logo = ""
+  logoTitle = "Wiki"
+
+[nav]
+  showCategories = true
+  showTags = true
+  showSeries = false
+
+[footer]
+  showPoweredBy = true
+  showHugo = true
+  showTheme = true
+
+# Recherche Fuse.js
+[search]
+  enable = true
+  type = "fuse"
+  
+  # Configuration Fuse.js
+  [search.fuse]
+    threshold = 0.2
+    minMatchCharLength = 2
+    keys = ["title", "content", "tags", "categories", "themes"]
+
+# Homepage
+[homeInfoParams]
+  Title = "Bienvenue sur mon Wiki"
+  Content = "Explorez mes notes organisées par thèmes"
+
+# Social (désactivé)
+[social]
+  enabled = false
+
+# Code highlighting
+[code]
+  copy = true
+  maxShownLines = 10
+
+# Math
+[math]
+  enable = false
+
+# Mermaid
+[mermaid]
+  enable = false
+
+# Mapbox
+[mapbox]
+  accessToken = ""
+
+# Assets directory
+[assets]
+  disableHLJS = true

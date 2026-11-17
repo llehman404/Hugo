@@ -1,0 +1,19 @@
+# Hugo
+.hugo_build.lock
+hugo_stats.json
+/public/
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python scripts (optionnel - garde les si tu veux les réutiliser)
+clean_filenames.py
+clean_filenames_v2.py
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,152 @@
+/* Tokyo Violet Theme Customizations */
+
+:root {
+  /* Tokyo Night Violet Palette */
+  --tokyo-violet-primary: #bb9af7;
+  --tokyo-violet-secondary: #9d7cd8;
+  --tokyo-violet-accent: #7aa2f7;
+  --tokyo-bg-dark: #1a1b26;
+  --tokyo-bg-darker: #16161e;
+  --tokyo-text: #c0caf5;
+  --tokyo-text-muted: #a9b1d6;
+  --tokyo-border: #3b4261;
+}
+
+/* Override PaperMod colors with Tokyo Violet */
+body {
+  background-color: var(--tokyo-bg-dark) !important;
+  color: var(--tokyo-text) !important;
+}
+
+/* Header */
+.header {
+  background-color: var(--tokyo-bg-darker) !important;
+  border-bottom: 1px solid var(--tokyo-border) !important;
+}
+
+/* Links */
+a {
+  color: var(--tokyo-violet-primary) !important;
+}
+
+a:hover {
+  color: var(--tokyo-violet-secondary) !important;
+}
+
+/* Cards */
+.card {
+  background-color: var(--tokyo-bg-darker) !important;
+  border: 1px solid var(--tokyo-border) !important;
+}
+
+/* Buttons */
+button,
+.button {
+  background-color: var(--tokyo-violet-primary) !important;
+  color: var(--tokyo-bg-dark) !important;
+  border: none !important;
+}
+
+button:hover,
+.button:hover {
+  background-color: var(--tokyo-violet-secondary) !important;
+}
+
+/* Search box */
+#search-input {
+  background-color: var(--tokyo-bg-darker) !important;
+  color: var(--tokyo-text) !important;
+  border: 1px solid var(--tokyo-border) !important;
+}
+
+/* Navigation menu */
+.navbar {
+  background-color: var(--tokyo-bg-darker) !important;
+}
+
+.navbar a {
+  color: var(--tokyo-text-muted) !important;
+}
+
+.navbar a:hover {
+  color: var(--tokyo-violet-primary) !important;
+}
+
+/* Sidebar */
+.sidebar {
+  background-color: var(--tokyo-bg-darker) !important;
+  border-right: 1px solid var(--tokyo-border) !important;
+}
+
+/* Code blocks */
+pre {
+  background-color: var(--tokyo-bg-darker) !important;
+  border-left: 3px solid var(--tokyo-violet-primary) !important;
+}
+
+/* Tags and categories */
+.tag {
+  background-color: var(--tokyo-violet-primary) !important;
+  color: var(--tokyo-bg-dark) !important;
+}
+
+.category {
+  background-color: var(--tokyo-violet-secondary) !important;
+  color: var(--tokyo-bg-dark) !important;
+}
+
+/* Footer */
+.footer {
+  background-color: var(--tokyo-bg-darker) !important;
+  border-top: 1px solid var(--tokyo-border) !important;
+  color: var(--tokyo-text-muted) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--tokyo-bg-darker);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--tokyo-violet-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tokyo-violet-secondary);
+}
+
+/* Dropdown menus for theme/tag selection */
+.dropdown {
+  background-color: var(--tokyo-bg-darker) !important;
+  border: 1px solid var(--tokyo-border) !important;
+}
+
+.dropdown-item {
+  color: var(--tokyo-text-muted) !important;
+}
+
+.dropdown-item:hover {
+  background-color: var(--tokyo-border) !important;
+  color: var(--tokyo-violet-primary) !important;
+}
+
+/* Post metadata */
+.post-meta {
+  color: var(--tokyo-text-muted) !important;
+}
+
+/* Line height and readability */
+article {
+  line-height: 1.8 !important;
+}
+
+/* Highlight active nav item */
+.navbar a.active {
+  color: var(--tokyo-violet-primary) !important;
+  font-weight: 500 !important;
+}

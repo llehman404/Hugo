@@ -1,0 +1,109 @@
+baseURL = 'http://localhost:1313/'
+locale = 'fr-fr'
+title = 'Wiki Personnel'
+theme = 'PaperMod'
+
+# Configuration des taxonomies
+[taxonomies]
+  tag = "tags"
+  category = "categories"
+  theme = "themes"
+  series = "series"
+
+# Configuration des outputs
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+  page = ["HTML"]
+  section = ["HTML", "RSS"]
+  taxonomy = ["HTML", "RSS"]
+  term = ["HTML", "RSS"]
+
+# Markdown
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    noClasses = false
+    codeFences = true
+    guessSyntax = true
+    lineNos = true
+    lineNumbersInTable = true
+    style = "tokyo-night"
+
+# Permalinks
+[permalinks]
+  posts = ":year/:month/:title"
+  pages = ":slug"
+
+# Menu principal
+[[menu.main]]
+  identifier = "accueil"
+  name = "Accueil"
+  url = "/"
+  weight = 1
+
+[[menu.main]]
+  identifier = "conserverie"
+  name = "Conserverie"
+  url = "/Conserverie/"
+  weight = 2
+
+[[menu.main]]
+  identifier = "informatique"
+  name = "Informatique"
+  url = "/Informatique/"
+  weight = 3
+
+# Menu pour les tags (liste déroulante)
+[[menu.tags]]
+  identifier = "all-tags"
+  name = "Tous les tags"
+  url = "/tags/"
+  weight = 1
+
+# Menu pour les thèmes
+[[menu.themes]]
+  identifier = "all-themes"
+  name = "Tous les thèmes"
+  url = "/themes/"
+  weight = 1
+
+# Build
+[build]
+  writeStats = true
+  useResourceCacheWhen = "fallback"
+
+# Minify
+[minify]
+  disableCSS = false
+  disableHTML = false
+  disableJS = false
+  disableJSON = false
+  disableSVG = false
+  disableXML = false
+  minifyOutput = true
+
+# Sitemap
+[sitemap]
+  changefreq = "weekly"
+  filename = "sitemap.xml"
+  priority = 0.5
+
+# Privacy
+[privacy]
+  [privacy.disqus]
+    disable = true
+  [privacy.googleAnalytics]
+    disable = true
+  [privacy.instagram]
+    disable = true
+  [privacy.vimeo]
+    disable = true
+  [privacy.youtube]
+    disable = true
+
+# Services
+[services]
+  [services.googleAnalytics]
+    ID = ""

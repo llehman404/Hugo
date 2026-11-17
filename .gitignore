@@ -10,10 +10,6 @@ hugo_stats.json
 *.swo
 *~
 
-# Python scripts (optionnel - garde les si tu veux les réutiliser)
-clean_filenames.py
-clean_filenames_v2.py
-
 # OS
 .DS_Store
 Thumbs.db

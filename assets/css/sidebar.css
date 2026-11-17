@@ -212,17 +212,17 @@ body.has-sidebar .main {
     padding-left: 0;
 }
 
-/* FORCER tout à être plié par défaut (CSS) */
+/* Initialement caché (sera géré par JS) */
 .tree-nav:not(.root-level) {
-    display: none !important;
+    display: none;
 }
 
 .tree-nav .tree-nav {
     padding-left: 1.25rem;
 }
 
-.tree-nav .tree-nav.show {
-    display: block !important;
+.tree-nav.show {
+    display: block;
     animation: fadeIn 0.2s ease;
 }
 
@@ -257,7 +257,7 @@ body.has-sidebar .main {
 }
 
 .tree-item.active > .tree-nav {
-    display: block !important;
+    display: block;
 }
 
 .tree-toggle {
@@ -285,24 +285,6 @@ body.has-sidebar .main {
 
 .tree-item.active > .tree-toggle {
     color: var(--entry);
-}
-
-/* Fix pour éviter que le header ne chevauche la sidebar */
-.header {
-    position: relative;
-    z-index: 101;
-    background-color: var(--entry);
-}
-
-/* ===== STYLE POUR LES LIENS ACTIFS ===== */
-.tree-item.active {
-    background-color: rgba(187, 154, 247, 0.1);
-    border-radius: 4px;
-}
-
-/* ===== POLICE ET ESPACEMENT ===== */
-.tree-link {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 /* ===== OVERLAY POUR MOBILE ===== */

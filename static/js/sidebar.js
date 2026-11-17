@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Corriger l'état initial de l'arbre
     setTimeout(() => {
-        fixInitialTreeState();
+        markCurrentPageActive();
     }, 100);
 });
 
@@ -50,7 +50,6 @@ function loadSearchIndex() {
 function initFuse() {
     // Vérifier que Fuse est chargé
     if (typeof Fuse === 'undefined') {
-        // Attendre et réessayer
         setTimeout(initFuse, 100);
         return;
     }
@@ -73,13 +72,10 @@ function initFuse() {
         useExtendedSearch: true,
         findAllMatches: true,
         isCaseSensitive: false,
-        shouldSort: true,
-        includeScore: true,
-        includeMatches: true
+        shouldSort: true
     };
     
     fuse = new Fuse(searchIndex, options);
-    console.log('Fuse.js initialisé avec', searchIndex.length, 'pages');
 }
 
 // ==========================================
@@ -110,7 +106,6 @@ function initSearch() {
         if (loadingIndicator) loadingIndicator.classList.add('show');
         searchResults.classList.add('show');
         
-        // Utiliser un délai pour éviter les requêtes trop fréquentes
         clearTimeout(window.searchTimeout);
         window.searchTimeout = setTimeout(() => {
             performSearch(query, searchResults, loadingIndicator);
@@ -175,9 +170,8 @@ function initSearch() {
 
 function performSearch(query, resultsContainer, loadingIndicator) {
     if (!fuse) {
-        // Réessayer d'initialiser Fuse
         initFuse();
-        resultsContainer.innerHTML = '<div class="no-results">Recherche en cours d\'initialisation...</div>';
+        resultsContainer.innerHTML = '<div class="no-results">Recherche en cours...</div>';
         if (loadingIndicator) loadingIndicator.classList.remove('show');
         return;
     }
@@ -208,7 +202,6 @@ function performSearch(query, resultsContainer, loadingIndicator) {
         
         resultsContainer.innerHTML = html;
         
-        // Ajouter les gestionnaires de clic
         resultsContainer.querySelectorAll('.search-result-item').forEach(item => {
             item.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -222,7 +215,6 @@ function performSearch(query, resultsContainer, loadingIndicator) {
 
 function highlightText(text, query) {
     if (!query) return text;
-    
     try {
         const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
         return text.replace(regex, '<mark>$1</mark>');
@@ -249,12 +241,15 @@ function initTreeNavigation() {
             const childList = parentItem.querySelector('.tree-nav');
             
             if (childList) {
+                // Basculer l'état
                 const isExpanded = childList.classList.contains('show');
                 
                 if (isExpanded) {
+                    // Fermer ce niveau et TOUS ses enfants
                     childList.classList.remove('show');
                     this.textContent = '+ ';
                 } else {
+                    // Ouvrir ce niveau uniquement
                     childList.classList.add('show');
                     this.textContent = '- ';
                 }
@@ -265,29 +260,14 @@ function initTreeNavigation() {
     // Gestion des clics sur les liens
     document.querySelectorAll('.tree-link').forEach(link => {
         link.addEventListener('click', function(e) {
-            // Marquer les parents comme actifs
-            markItemActive(this.closest('.tree-item'));
+            // Ne pas empêcher la navigation
         });
     });
 }
 
 // ==========================================
-// ÉTAT INITIAL DE L'ARBRE
+// MARQUER LA PAGE COURANTE
 // ==========================================
-function fixInitialTreeState() {
-    // TOUT doit être plié par défaut
-    document.querySelectorAll('.tree-nav:not(.root-level)').forEach(list => {
-        list.classList.remove('show');
-    });
-    
-    document.querySelectorAll('.tree-toggle').forEach(toggle => {
-        toggle.textContent = '+ ';
-    });
-    
-    // Marquer l'item correspondant à la page actuelle
-    markCurrentPageActive();
-}
-
 function markCurrentPageActive() {
     const currentPath = window.location.pathname;
     const currentUrl = window.location.href;
@@ -309,9 +289,9 @@ function markCurrentPageActive() {
         } else if (normalizedCurrent.startsWith(normalizedHref) && normalizedHref !== '/') {
             score = 50; // La page courante est une sous-page
         } else if (normalizedHref.startsWith(normalizedCurrent)) {
-            score = 25; // Le lien est une sous-page de la page courante
+            score = 25;
         } else if (normalizedHref.includes(normalizedCurrent.split('/').pop())) {
-            score = 10; // Le nom de la page est dans l'URL
+            score = 10;
         }
         
         if (score > bestScore) {
@@ -321,32 +301,21 @@ function markCurrentPageActive() {
     });
     
     if (bestMatch) {
-        markItemActive(bestMatch.closest('.tree-item'));
-    }
-}
-
-function markItemActive(item) {
-    if (!item) return;
-    
-    // Supprimer l'active de tous les items
-    document.querySelectorAll('.tree-item.active').forEach(i => {
-        i.classList.remove('active');
-    });
-    
-    // Marquer les parents comme actifs et les déplier
-    let current = item;
-    while (current && current.classList) {
-        if (current.classList.contains('tree-item')) {
-            current.classList.add('active');
-            // Déplier
-            const childList = current.querySelector('.tree-nav');
-            if (childList) {
-                childList.classList.add('show');
-                const toggle = current.querySelector('.tree-toggle');
-                if (toggle) toggle.textContent = '- ';
+        // Marquer les parents comme actifs et les déplier
+        let current = bestMatch.closest('.tree-item');
+        while (current && current.classList) {
+            if (current.classList.contains('tree-item')) {
+                current.classList.add('active');
+                // Déplier
+                const childList = current.querySelector('.tree-nav');
+                if (childList) {
+                    childList.classList.add('show');
+                    const toggle = current.querySelector('.tree-toggle');
+                    if (toggle) toggle.textContent = '- ';
+                }
             }
+            current = current.parentElement?.closest('.tree-item');
         }
-        current = current.parentElement?.closest('.tree-item');
     }
 }
 

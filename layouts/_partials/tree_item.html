@@ -1,32 +1,22 @@
 {{- /* Partial pour afficher un élément de l'arbre de navigation */ -}}
 {{- $page := . -}}
-{{- $sections := $page.Sections -}}
-{{- /* Collecter les titres des sections pour éviter les doublons */ -}}
-{{- $sectionTitles := slice -}}
-{{- range $sections -}}
-  {{- $sectionTitles = $sectionTitles | append .Title -}}
-{{- end -}}
-
-{{- /* Pages directes qui ne sont pas des sections (pas de doublons) */ -}}
-{{- $directPages := where $page.Pages "Title" "not in" $sectionTitles -}}
-
-{{- $hasChildren := or (ne (len $sections) 0) (ne (len $directPages) 0) -}}
 
 <li class="tree-item">
   <a href="{{- $page.RelPermalink -}}" class="tree-link">
     {{- $page.Title -}}
-    {{- if $hasChildren -}}
+    {{- if or (ne (len $page.Sections) 0) (ne (len (where $page.Pages "IsSection" false)) 0) -}}
       <span class="tree-toggle">+</span>
     {{- end -}}
   </a>
-  {{- if $hasChildren -}}
+  {{- if or (ne (len $page.Sections) 0) (ne (len (where $page.Pages "IsSection" false)) 0) -}}
     <ul class="tree-nav">
       {{- /* Afficher les sous-sections */ -}}
-      {{- range $sections.ByTitle -}}
+      {{- range $page.Sections.ByTitle -}}
         {{- partial "tree_item.html" . -}}
       {{- end -}}
-      {{- /* Afficher les pages directes qui ne sont pas des sections */ -}}
-      {{- range $directPages.ByTitle -}}
+      
+      {{- /* Afficher les pages directes qui ne sont PAS des sections */ -}}
+      {{- range (where $page.Pages "IsSection" false).ByTitle -}}
         <li class="tree-item">
           <a href="{{- .RelPermalink -}}" class="tree-link">{{- .Title -}}</a>
         </li>

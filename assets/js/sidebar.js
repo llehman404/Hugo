@@ -2,23 +2,34 @@
 // SIDEBAR - Recherche et Navigation par Arbre
 // ==========================================
 
-// Fuse.js pour la recherche (chargé depuis PaperMod)
+// Fuse.js pour la recherche
 let searchIndex = null;
 let fuse = null;
 
-// Charger l'index de recherche
+// ==========================================
+// INITIALISATION
+// ==========================================
 document.addEventListener('DOMContentLoaded', function() {
+    // Charger l'index de recherche
     loadSearchIndex();
-    initTreeNavigation();
+    
+    // Initialiser la recherche
     initSearch();
-    fixInitialTreeState();
+    
+    // Initialiser la navigation par arbre
+    initTreeNavigation();
+    
+    // Corriger l'état initial de l'arbre
+    setTimeout(() => {
+        fixInitialTreeState();
+    }, 100);
 });
 
 // ==========================================
 // CHARGEMENT DE L'INDEX DE RECHERCHE
 // ==========================================
 function loadSearchIndex() {
-    const indexPath = typeof __SEARCH_INDEX__ !== 'undefined' ? __SEARCH_INDEX__ : '/index.json';
+    const indexPath = '/index.json';
     
     fetch(indexPath)
         .then(response => {
@@ -29,27 +40,46 @@ function loadSearchIndex() {
         })
         .then(data => {
             searchIndex = data;
-            
-            // Configuration Fuse.js
-            const options = {
-                keys: [
-                    { name: 'title', weight: 0.4 },
-                    { name: 'content', weight: 0.6 }
-                ],
-                threshold: 0.2,
-                ignoreLocation: true,
-                minMatchCharLength: 2,
-                useExtendedSearch: true,
-                findAllMatches: true,
-                isCaseSensitive: false,
-                shouldSort: true
-            };
-            
-            fuse = new Fuse(data, options);
+            initFuse();
         })
         .catch(error => {
             console.error('Erreur lors du chargement de l\'index de recherche:', error);
         });
+}
+
+function initFuse() {
+    // Vérifier que Fuse est chargé
+    if (typeof Fuse === 'undefined') {
+        // Attendre et réessayer
+        setTimeout(initFuse, 100);
+        return;
+    }
+    
+    if (!searchIndex) {
+        setTimeout(initFuse, 100);
+        return;
+    }
+    
+    // Configuration Fuse.js
+    const options = {
+        keys: [
+            { name: 'title', weight: 0.4 },
+            { name: 'content', weight: 0.6 },
+            { name: 'summary', weight: 0.3 }
+        ],
+        threshold: 0.3,
+        ignoreLocation: true,
+        minMatchCharLength: 2,
+        useExtendedSearch: true,
+        findAllMatches: true,
+        isCaseSensitive: false,
+        shouldSort: true,
+        includeScore: true,
+        includeMatches: true
+    };
+    
+    fuse = new Fuse(searchIndex, options);
+    console.log('Fuse.js initialisé avec', searchIndex.length, 'pages');
 }
 
 // ==========================================
@@ -68,6 +98,12 @@ function initSearch() {
         if (query.length === 0) {
             searchResults.classList.remove('show');
             if (loadingIndicator) loadingIndicator.classList.remove('show');
+            return;
+        }
+
+        if (query.length < 2) {
+            searchResults.innerHTML = '<div class="no-results">Tapez au moins 2 caractères</div>';
+            searchResults.classList.add('show');
             return;
         }
 
@@ -101,33 +137,35 @@ function initSearch() {
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            if (currentIndex < results.length - 1) {
-                results[currentIndex]?.classList.remove('focused');
-                results[currentIndex + 1].classList.add('focused');
-                results[currentIndex + 1].scrollIntoView({ block: 'nearest' });
-            } else if (results.length > 0) {
-                results[currentIndex]?.classList.remove('focused');
-                results[0].classList.add('focused');
-                results[0].scrollIntoView({ block: 'nearest' });
+            if (results.length > 0) {
+                results.forEach(r => r.classList.remove('focused'));
+                if (currentIndex < results.length - 1) {
+                    results[currentIndex + 1].classList.add('focused');
+                    results[currentIndex + 1].scrollIntoView({ block: 'nearest' });
+                } else {
+                    results[0].classList.add('focused');
+                    results[0].scrollIntoView({ block: 'nearest' });
+                }
             }
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            if (currentIndex > 0) {
-                results[currentIndex].classList.remove('focused');
-                results[currentIndex - 1].classList.add('focused');
-                results[currentIndex - 1].scrollIntoView({ block: 'nearest' });
-            } else if (results.length > 0) {
-                results[currentIndex]?.classList.remove('focused');
-                results[results.length - 1].classList.add('focused');
-                results[results.length - 1].scrollIntoView({ block: 'nearest' });
+            if (results.length > 0) {
+                results.forEach(r => r.classList.remove('focused'));
+                if (currentIndex > 0) {
+                    results[currentIndex - 1].classList.add('focused');
+                    results[currentIndex - 1].scrollIntoView({ block: 'nearest' });
+                } else {
+                    results[results.length - 1].classList.add('focused');
+                    results[results.length - 1].scrollIntoView({ block: 'nearest' });
+                }
             }
         } else if (e.key === 'Enter') {
             e.preventDefault();
             const focused = searchResults.querySelector('.search-result-item.focused');
             if (focused) {
-                focused.click();
+                window.location.href = focused.getAttribute('data-url');
             } else if (results.length > 0) {
-                results[0].click();
+                window.location.href = results[0].getAttribute('data-url');
             }
         } else if (e.key === 'Escape') {
             searchResults.classList.remove('show');
@@ -136,8 +174,10 @@ function initSearch() {
 }
 
 function performSearch(query, resultsContainer, loadingIndicator) {
-    if (!fuse || query.length < 2) {
-        resultsContainer.innerHTML = '<div class="no-results">Aucun résultat trouvé</div>';
+    if (!fuse) {
+        // Réessayer d'initialiser Fuse
+        initFuse();
+        resultsContainer.innerHTML = '<div class="no-results">Recherche en cours d\'initialisation...</div>';
         if (loadingIndicator) loadingIndicator.classList.remove('show');
         return;
     }
@@ -153,13 +193,14 @@ function performSearch(query, resultsContainer, loadingIndicator) {
         for (let i = 0; i < maxResults; i++) {
             const item = results[i].item;
             const highlightedTitle = highlightText(item.title, query);
-            const highlightedSnippet = item.content ? highlightText(item.content.substring(0, 150) + '...', query) : '';
+            const snippet = item.content ? item.content.substring(0, 200) : (item.summary || '');
+            const highlightedSnippet = highlightText(snippet + '...', query);
             
             html += `
-                <div class="search-result-item" data-url="${item.url}">
-                    <a href="${item.url}">
+                <div class="search-result-item" data-url="${item.permalink || item.url}">
+                    <a href="${item.permalink || item.url}">
                         <div class="search-result-title">${highlightedTitle}</div>
-                        <div class="search-result-snippet">${highlightedSnippet || item.description || ''}</div>
+                        <div class="search-result-snippet">${highlightedSnippet}</div>
                     </a>
                 </div>
             `;
@@ -171,17 +212,7 @@ function performSearch(query, resultsContainer, loadingIndicator) {
         resultsContainer.querySelectorAll('.search-result-item').forEach(item => {
             item.addEventListener('click', function(e) {
                 e.preventDefault();
-                const url = this.getAttribute('data-url');
-                window.location.href = url;
-                resultsContainer.classList.remove('show');
-            });
-            
-            item.addEventListener('mouseenter', function() {
-                this.classList.add('focused');
-            });
-            
-            item.addEventListener('mouseleave', function() {
-                this.classList.remove('focused');
+                window.location.href = this.getAttribute('data-url');
             });
         });
     }
@@ -192,8 +223,16 @@ function performSearch(query, resultsContainer, loadingIndicator) {
 function highlightText(text, query) {
     if (!query) return text;
     
-    const regex = new RegExp(`(${query})`, 'gi');
-    return text.replace(regex, '<mark>$1</mark>');
+    try {
+        const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+    } catch (e) {
+        return text;
+    }
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // ==========================================
@@ -208,59 +247,35 @@ function initTreeNavigation() {
             
             const parentItem = this.closest('.tree-item');
             const childList = parentItem.querySelector('.tree-nav');
-            const icon = this;
             
             if (childList) {
                 const isExpanded = childList.classList.contains('show');
                 
                 if (isExpanded) {
                     childList.classList.remove('show');
-                    icon.textContent = '+ ';
+                    this.textContent = '+ ';
                 } else {
                     childList.classList.add('show');
-                    icon.textContent = '- ';
+                    this.textContent = '- ';
                 }
             }
         });
     });
     
-    // Gestion des clics sur les liens (pour activer la classe active)
+    // Gestion des clics sur les liens
     document.querySelectorAll('.tree-link').forEach(link => {
         link.addEventListener('click', function(e) {
-            // Ne pas empêcher la navigation
-            // Mais marquer l'item comme actif
-            const parentItem = this.closest('.tree-item');
-            
-            // Supprimer l Active de tous
-            document.querySelectorAll('.tree-item.active').forEach(item => {
-                item.classList.remove('active');
-            });
-            
             // Marquer les parents comme actifs
-            let current = parentItem;
-            while (current && current.classList) {
-                if (current.classList.contains('tree-item')) {
-                    current.classList.add('active');
-                    // Déplier les enfants
-                    const childList = current.querySelector('.tree-nav');
-                    if (childList) {
-                        childList.classList.add('show');
-                        const toggle = current.querySelector('.tree-toggle');
-                        if (toggle) toggle.textContent = '- ';
-                    }
-                }
-                current = current.parentElement?.closest('.tree-item');
-            }
+            markItemActive(this.closest('.tree-item'));
         });
     });
 }
 
 // ==========================================
-// CORRECTION DE L'ÉTAT INITIAL DE L'ARBRE
+// ÉTAT INITIAL DE L'ARBRE
 // ==========================================
 function fixInitialTreeState() {
     // TOUT doit être plié par défaut
-    // Le CSS s'en charge, mais on peut vérifier au cas où
     document.querySelectorAll('.tree-nav:not(.root-level)').forEach(list => {
         list.classList.remove('show');
     });
@@ -277,56 +292,74 @@ function markCurrentPageActive() {
     const currentPath = window.location.pathname;
     const currentUrl = window.location.href;
     
-    // Trouver le lien correspondant
-    let activeLink = null;
+    // Trouver le lien correspondant à la page courante
+    let bestMatch = null;
+    let bestScore = -1;
+    
     document.querySelectorAll('.tree-link').forEach(link => {
         const href = link.getAttribute('href');
-        
-        // Normaliser les URLs pour comparaison
         const normalizedHref = normalizeUrl(href);
         const normalizedCurrent = normalizeUrl(currentUrl);
         
-        if (normalizedCurrent.endsWith(normalizedHref) || 
-            normalizedHref.endsWith(normalizedCurrent.split('/').pop())) {
-            activeLink = link;
+        // Calculer un score de correspondance
+        let score = 0;
+        
+        if (normalizedCurrent === normalizedHref) {
+            score = 100; // Match exact
+        } else if (normalizedCurrent.startsWith(normalizedHref) && normalizedHref !== '/') {
+            score = 50; // La page courante est une sous-page
+        } else if (normalizedHref.startsWith(normalizedCurrent)) {
+            score = 25; // Le lien est une sous-page de la page courante
+        } else if (normalizedHref.includes(normalizedCurrent.split('/').pop())) {
+            score = 10; // Le nom de la page est dans l'URL
+        }
+        
+        if (score > bestScore) {
+            bestScore = score;
+            bestMatch = link;
         }
     });
     
-    if (activeLink) {
-        const parentItem = activeLink.closest('.tree-item');
-        
-        // Marquer les parents comme actifs et les déplier
-        let current = parentItem;
-        while (current && current.classList) {
-            if (current.classList.contains('tree-item')) {
-                current.classList.add('active');
-                // Déplier
-                const childList = current.querySelector('.tree-nav');
-                if (childList) {
-                    childList.classList.add('show');
-                    const toggle = current.querySelector('.tree-toggle');
-                    if (toggle) toggle.textContent = '- ';
-                }
+    if (bestMatch) {
+        markItemActive(bestMatch.closest('.tree-item'));
+    }
+}
+
+function markItemActive(item) {
+    if (!item) return;
+    
+    // Supprimer l'active de tous les items
+    document.querySelectorAll('.tree-item.active').forEach(i => {
+        i.classList.remove('active');
+    });
+    
+    // Marquer les parents comme actifs et les déplier
+    let current = item;
+    while (current && current.classList) {
+        if (current.classList.contains('tree-item')) {
+            current.classList.add('active');
+            // Déplier
+            const childList = current.querySelector('.tree-nav');
+            if (childList) {
+                childList.classList.add('show');
+                const toggle = current.querySelector('.tree-toggle');
+                if (toggle) toggle.textContent = '- ';
             }
-            current = current.parentElement?.closest('.tree-item');
         }
+        current = current.parentElement?.closest('.tree-item');
     }
 }
 
 function normalizeUrl(url) {
-    // Supprimer les query strings et les hashs
-    return url.split('?')[0].split('#')[0].replace(/\/+$/, '');
+    // Supprimer les query strings, les hashs, et les trailing slashes
+    return url
+        .split('?')[0]
+        .split('#')[0]
+        .replace(/\/+$/, '')
+        .replace(/\/index\.html$/, '/');
 }
 
-
-// ==========================================
-// UTILITAIRES
-// ==========================================
-
-// Vérifier si on est sur une page avec sidebar
-document.addEventListener('DOMContentLoaded', function() {
-    const sidebar = document.querySelector('.sidebar.left-sidebar');
-    if (sidebar) {
-        document.body.classList.add('has-sidebar');
-    }
+// Nettoyer au déchargement
+window.addEventListener('beforeunload', function() {
+    clearTimeout(window.searchTimeout);
 });

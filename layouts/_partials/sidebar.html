@@ -8,13 +8,8 @@
   <link rel="stylesheet" href="{{- "css/sidebar.css" | relURL -}}">
 {{- end -}}
 
-{{- /* Charger Fuse.js avant le JS de la sidebar */ -}}
-{{- $fuseJS := resources.Get "js/fuse.basic.min.js" -}}
-{{- if $fuseJS -}}
-  <script src="{{- $fuseJS.RelPermalink -}}"></script>
-{{- else -}}
-  <script src="{{- "js/fuse.basic.min.js" | relURL -}}"></script>
-{{- end -}}
+{{- /* Charger Fuse.js depuis PaperMod */ -}}
+<script src="{{- "js/fuse.basic.min.js" | relURL -}}"></script>
 
 <aside class="sidebar left-sidebar">
   
@@ -48,17 +43,19 @@
       </svg>
     </h3>
     <nav class="tree-nav-container">
-      {{- /* Conserverie */ -}}
-      {{- $conserverie := site.GetPage "section" "Conserverie" -}}
-      {{- if $conserverie -}}
-        {{- partial "tree_item.html" $conserverie -}}
-      {{- end -}}
-      
-      {{- /* Informatique */ -}}
-      {{- $informatique := site.GetPage "section" "Informatique" -}}
-      {{- if $informatique -}}
-        {{- partial "tree_item.html" $informatique -}}
-      {{- end -}}
+      <ul class="tree-nav root-level">
+        {{- /* Conserverie */ -}}
+        {{- $conserverie := site.GetPage "section" "Conserverie" -}}
+        {{- if $conserverie -}}
+          {{- partial "tree_item.html" $conserverie -}}
+        {{- end -}}
+        
+        {{- /* Informatique */ -}}
+        {{- $informatique := site.GetPage "section" "Informatique" -}}
+        {{- if $informatique -}}
+          {{- partial "tree_item.html" $informatique -}}
+        {{- end -}}
+      </ul>
     </nav>
   </div>
 

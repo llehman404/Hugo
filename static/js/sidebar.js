@@ -2,14 +2,18 @@
 // SIDEBAR - Recherche et Navigation par Arbre
 // ==========================================
 
-// Fuse.js pour la recherche
+// État global
 let searchIndex = null;
 let fuse = null;
+let isHomePage = false;
 
 // ==========================================
 // INITIALISATION
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
+    // Vérifier si on est sur la page d'accueil
+    isHomePage = window.location.pathname === '/' || window.location.pathname === '/index.html';
+    
     // Charger l'index de recherche
     loadSearchIndex();
     
@@ -19,9 +23,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialiser la navigation par arbre
     initTreeNavigation();
     
-    // Corriger l'état initial de l'arbre
+    // Tout plier par défaut au chargement
     setTimeout(() => {
-        markCurrentPageActive();
+        collapseAllTreeItems();
+        // Ne pas déplier automatiquement sur la page d'accueil
+        if (!isHomePage) {
+            expandCurrentPagePath();
+        }
     }, 100);
 });
 
@@ -40,27 +48,23 @@ function loadSearchIndex() {
         })
         .then(data => {
             searchIndex = data;
-            initFuse();
+            // Fuse.js est déjà chargé via la balise <script> dans le HTML
+            initFuseWithRetry(data);
         })
         .catch(error => {
-            console.error('Erreur lors du chargement de l\'index de recherche:', error);
+            console.error('Erreur chargement index:', error);
         });
 }
 
-function initFuse() {
-    // Vérifier que Fuse est chargé
+function initFuseWithRetry(data, attempt = 1) {
     if (typeof Fuse === 'undefined') {
-        setTimeout(initFuse, 100);
+        if (attempt < 10) {
+            setTimeout(() => initFuseWithRetry(data, attempt + 1), 200);
+        }
         return;
     }
     
-    if (!searchIndex) {
-        setTimeout(initFuse, 100);
-        return;
-    }
-    
-    // Configuration Fuse.js
-    const options = {
+    fuse = new Fuse(data, {
         keys: [
             { name: 'title', weight: 0.4 },
             { name: 'content', weight: 0.6 },
@@ -73,13 +77,11 @@ function initFuse() {
         findAllMatches: true,
         isCaseSensitive: false,
         shouldSort: true
-    };
-    
-    fuse = new Fuse(searchIndex, options);
+    });
 }
 
 // ==========================================
-// INITIALISATION DE LA RECHERCHE
+// RECHERCHE
 // ==========================================
 function initSearch() {
     const searchInput = document.getElementById('global-search-input');
@@ -88,15 +90,19 @@ function initSearch() {
     
     if (!searchInput || !searchResults) return;
 
+    let searchTimeout;
+
     searchInput.addEventListener('input', function(e) {
         const query = e.target.value.trim();
         
+        // Fermer si vide
         if (query.length === 0) {
             searchResults.classList.remove('show');
             if (loadingIndicator) loadingIndicator.classList.remove('show');
             return;
         }
 
+        // Minimum 2 caractères
         if (query.length < 2) {
             searchResults.innerHTML = '<div class="no-results">Tapez au moins 2 caractères</div>';
             searchResults.classList.add('show');
@@ -106,53 +112,43 @@ function initSearch() {
         if (loadingIndicator) loadingIndicator.classList.add('show');
         searchResults.classList.add('show');
         
-        clearTimeout(window.searchTimeout);
-        window.searchTimeout = setTimeout(() => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
             performSearch(query, searchResults, loadingIndicator);
         }, 200);
     });
 
-    // Fermer les résultats quand on clique ailleurs
+    // Fermer quand on clique ailleurs
     document.addEventListener('click', function(e) {
         if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
             searchResults.classList.remove('show');
         }
     });
 
-    // Navigation avec les flèches
+    // Navigation clavier
     searchInput.addEventListener('keydown', function(e) {
         const results = searchResults.querySelectorAll('.search-result-item');
         let currentIndex = -1;
         
         results.forEach((item, index) => {
-            if (item.classList.contains('focused')) {
-                currentIndex = index;
-            }
+            if (item.classList.contains('focused')) currentIndex = index;
         });
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             if (results.length > 0) {
                 results.forEach(r => r.classList.remove('focused'));
-                if (currentIndex < results.length - 1) {
-                    results[currentIndex + 1].classList.add('focused');
-                    results[currentIndex + 1].scrollIntoView({ block: 'nearest' });
-                } else {
-                    results[0].classList.add('focused');
-                    results[0].scrollIntoView({ block: 'nearest' });
-                }
+                const newIndex = currentIndex < results.length - 1 ? currentIndex + 1 : 0;
+                results[newIndex].classList.add('focused');
+                results[newIndex].scrollIntoView({ block: 'nearest' });
             }
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             if (results.length > 0) {
                 results.forEach(r => r.classList.remove('focused'));
-                if (currentIndex > 0) {
-                    results[currentIndex - 1].classList.add('focused');
-                    results[currentIndex - 1].scrollIntoView({ block: 'nearest' });
-                } else {
-                    results[results.length - 1].classList.add('focused');
-                    results[results.length - 1].scrollIntoView({ block: 'nearest' });
-                }
+                const newIndex = currentIndex > 0 ? currentIndex - 1 : results.length - 1;
+                results[newIndex].classList.add('focused');
+                results[newIndex].scrollIntoView({ block: 'nearest' });
             }
         } else if (e.key === 'Enter') {
             e.preventDefault();
@@ -170,7 +166,6 @@ function initSearch() {
 
 function performSearch(query, resultsContainer, loadingIndicator) {
     if (!fuse) {
-        initFuse();
         resultsContainer.innerHTML = '<div class="no-results">Recherche en cours...</div>';
         if (loadingIndicator) loadingIndicator.classList.remove('show');
         return;
@@ -187,14 +182,14 @@ function performSearch(query, resultsContainer, loadingIndicator) {
         for (let i = 0; i < maxResults; i++) {
             const item = results[i].item;
             const highlightedTitle = highlightText(item.title, query);
-            const snippet = item.content ? item.content.substring(0, 200) : (item.summary || '');
+            const snippet = item.content ? item.content.substring(0, 150) : (item.summary || '');
             const highlightedSnippet = highlightText(snippet + '...', query);
             
             html += `
                 <div class="search-result-item" data-url="${item.permalink || item.url}">
                     <a href="${item.permalink || item.url}">
                         <div class="search-result-title">${highlightedTitle}</div>
-                        <div class="search-result-snippet">${highlightedSnippet}</div>
+                        ${highlightedSnippet ? `<div class="search-result-snippet">${highlightedSnippet}</div>` : ''}
                     </a>
                 </div>
             `;
@@ -231,7 +226,6 @@ function escapeRegExp(string) {
 // NAVIGATION PAR ARBRE
 // ==========================================
 function initTreeNavigation() {
-    // Gestion des toggles
     document.querySelectorAll('.tree-toggle').forEach(toggle => {
         toggle.addEventListener('click', function(e) {
             e.preventDefault();
@@ -241,38 +235,40 @@ function initTreeNavigation() {
             const childList = parentItem.querySelector('.tree-nav');
             
             if (childList) {
-                // Basculer l'état
                 const isExpanded = childList.classList.contains('show');
                 
                 if (isExpanded) {
-                    // Fermer ce niveau et TOUS ses enfants
+                    // Fermer ce niveau
                     childList.classList.remove('show');
                     this.textContent = '+ ';
                 } else {
-                    // Ouvrir ce niveau uniquement
+                    // Ouvrir ce niveau
                     childList.classList.add('show');
                     this.textContent = '- ';
                 }
             }
         });
     });
-    
-    // Gestion des clics sur les liens
-    document.querySelectorAll('.tree-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-            // Ne pas empêcher la navigation
-        });
-    });
 }
 
 // ==========================================
-// MARQUER LA PAGE COURANTE
+// GESTION DE L'ÉTAT INITIAL
 // ==========================================
-function markCurrentPageActive() {
+function collapseAllTreeItems() {
+    document.querySelectorAll('.tree-nav:not(.root-level)').forEach(list => {
+        list.classList.remove('show');
+    });
+    
+    document.querySelectorAll('.tree-toggle').forEach(toggle => {
+        toggle.textContent = '+ ';
+    });
+}
+
+function expandCurrentPagePath() {
     const currentPath = window.location.pathname;
     const currentUrl = window.location.href;
     
-    // Trouver le lien correspondant à la page courante
+    // Trouver le lien correspondant
     let bestMatch = null;
     let bestScore = -1;
     
@@ -281,13 +277,12 @@ function markCurrentPageActive() {
         const normalizedHref = normalizeUrl(href);
         const normalizedCurrent = normalizeUrl(currentUrl);
         
-        // Calculer un score de correspondance
         let score = 0;
         
         if (normalizedCurrent === normalizedHref) {
-            score = 100; // Match exact
+            score = 100;
         } else if (normalizedCurrent.startsWith(normalizedHref) && normalizedHref !== '/') {
-            score = 50; // La page courante est une sous-page
+            score = 50;
         } else if (normalizedHref.startsWith(normalizedCurrent)) {
             score = 25;
         } else if (normalizedHref.includes(normalizedCurrent.split('/').pop())) {
@@ -301,12 +296,9 @@ function markCurrentPageActive() {
     });
     
     if (bestMatch) {
-        // Marquer les parents comme actifs et les déplier
         let current = bestMatch.closest('.tree-item');
         while (current && current.classList) {
             if (current.classList.contains('tree-item')) {
-                current.classList.add('active');
-                // Déplier
                 const childList = current.querySelector('.tree-nav');
                 if (childList) {
                     childList.classList.add('show');
@@ -320,7 +312,6 @@ function markCurrentPageActive() {
 }
 
 function normalizeUrl(url) {
-    // Supprimer les query strings, les hashs, et les trailing slashes
     return url
         .split('?')[0]
         .split('#')[0]
@@ -328,7 +319,9 @@ function normalizeUrl(url) {
         .replace(/\/index\.html$/, '/');
 }
 
-// Nettoyer au déchargement
+// ==========================================
+// NETTOYAGE
+// ==========================================
 window.addEventListener('beforeunload', function() {
     clearTimeout(window.searchTimeout);
 });

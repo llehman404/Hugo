@@ -70,7 +70,7 @@ body.has-sidebar .main {
 
 #global-search-input {
     width: 100%;
-    padding: 0.5rem 0.75rem 0.5rem 2.25rem; /* Espace pour l'icône */
+    padding: 0.5rem 0.75rem 0.5rem 2.25rem;
     border: 1px solid var(--border);
     border-radius: 6px;
     background-color: var(--entry);
@@ -212,7 +212,7 @@ body.has-sidebar .main {
     padding-left: 0;
 }
 
-/* Initialement caché (sera géré par JS) */
+/* Par défaut, tout est caché (le JS va le gérer) */
 .tree-nav:not(.root-level) {
     display: none;
 }
@@ -256,10 +256,6 @@ body.has-sidebar .main {
     font-weight: 500;
 }
 
-.tree-item.active > .tree-nav {
-    display: block;
-}
-
 .tree-toggle {
     cursor: pointer;
     font-size: 0.85rem;
@@ -281,10 +277,6 @@ body.has-sidebar .main {
 .tree-toggle:hover {
     background-color: var(--border);
     color: var(--text);
-}
-
-.tree-item.active > .tree-toggle {
-    color: var(--entry);
 }
 
 /* ===== OVERLAY POUR MOBILE ===== */
@@ -309,7 +301,6 @@ body.has-sidebar .main {
         z-index: 101;
     }
     
-    /* Ajuster la taille des résultats sur mobile */
     #global-search-results {
         max-width: calc(100vw - 2rem);
         left: 1rem;

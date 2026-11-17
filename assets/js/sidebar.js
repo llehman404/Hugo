@@ -10,24 +10,23 @@ let fuseOptions = {
   findAllMatches: true,
   minMatchCharLength: 2,
   location: 0,
-  threshold: 0.2,  // Réduit de 0.4 à 0.2 pour plus de résultats
+  threshold: 0.2,
   distance: 100,
   useExtendedSearch: false,
-  ignoreLocation: true,  // Ignore la position dans le texte
+  ignoreLocation: true,
   ignoreFieldNorm: false,
   fieldNormWeight: 1,
-  // Donner plus de poids au contenu qu'au titre
   keys: [
     { name: 'title', weight: 0.4 },
-    { name: 'content', weight: 0.6 },  // Plus de poids au contenu
+    { name: 'content', weight: 0.6 },
     { name: 'permalink', weight: 0.3 }
   ]
 };
 
 // Charger l'index de recherche
 function loadSearchIndex() {
-  const baseUrl = document.querySelector('link[rel="canonical"]')?.href || '';
-  const indexUrl = new URL('index.json', baseUrl).toString();
+  // Utiliser une URL absolue vers index.json à la racine
+  const indexUrl = new URL('/index.json', window.location.origin).toString();
   const loadingIndicator = document.querySelector('.search-loading');
   
   if (loadingIndicator) {
@@ -146,24 +145,20 @@ function setupSearch() {
 
 // Extraire un extrait du contenu avec le terme de recherche
 function getContentPreview(content, query, maxLength) {
-  // Trouver la position de la première occurrence
   const contentLower = content.toLowerCase();
   const queryLower = query.toLowerCase();
   const pos = contentLower.indexOf(queryLower);
   
   if (pos === -1) return '';
   
-  // Extraire un texte autour de la position
   const start = Math.max(0, pos - 20);
   const end = Math.min(content.length, pos + maxLength);
   let preview = content.substring(start, end);
   
-  // Si on a coupé au début, ajouter ...
   if (start > 0) {
     preview = '...' + preview;
   }
   
-  // Surligner le query dans le preview
   preview = highlightText(preview, query);
   
   return preview;
@@ -187,7 +182,10 @@ function escapeRegExp(string) {
 function initTree() {
   const treeContainers = document.querySelectorAll('.tree-nav-container');
   
-  // Activer l'item correspondant à la page courante
+  // D'abord, tout fermer (par défaut tout est plié)
+  closeAllTreeItems();
+  
+  // Puis ouvrir seulement le chemin vers la page courante
   const currentPath = window.location.pathname;
   const treeLinks = document.querySelectorAll('.tree-link');
   
@@ -206,6 +204,24 @@ function initTree() {
   // Ajouter les handlers pour le toggle
   treeContainers.forEach(container => {
     container.addEventListener('click', toggleTree);
+  });
+}
+
+// Fermer tous les items de l'arbre
+function closeAllTreeItems() {
+  const allTreeNavs = document.querySelectorAll('.tree-nav:not(.root-level)');
+  allTreeNavs.forEach(nav => {
+    nav.classList.remove('show');
+  });
+  
+  const allToggles = document.querySelectorAll('.tree-toggle');
+  allToggles.forEach(toggle => {
+    toggle.textContent = '+';
+  });
+  
+  const allItems = document.querySelectorAll('.tree-item');
+  allItems.forEach(item => {
+    item.classList.remove('active');
   });
 }
 
@@ -249,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTree();
 });
 
-// Re-initialiser quand on navigue (pour les SPAs, mais utile aussi pour Turbo/HTMX)
+// Re-initialiser quand on navigue
 if (window.history.pushState) {
   const originalPushState = window.history.pushState;
   window.history.pushState = function() {
